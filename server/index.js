@@ -56,6 +56,17 @@ async function handleCreateCheckoutSession(req, res, rawBody) {
   }
 }
 
+/**
+ * Handles incoming webhook events from Stripe.
+ *
+ * The function first checks for the presence of the STRIPE_SECRET_KEY and webhookSecret. If either is missing, it returns an appropriate response. It then attempts to validate the webhook signature and process specific event types. If the signature validation fails, it logs the error and returns a 400 response indicating an invalid signature.
+ *
+ * @param req - The request object containing the webhook data.
+ * @param res - The response object used to send responses back to the client.
+ * @param rawBody - The raw body of the request for signature verification.
+ * @returns A JSON response indicating the result of the webhook handling.
+ * @throws Error If the webhook signature validation fails.
+ */
 async function handleWebhook(req, res, rawBody) {
   if (!stripeSecret) return json(res, 500, { error: 'Missing STRIPE_SECRET_KEY' })
   if (!webhookSecret) return json(res, 200, { received: true })
