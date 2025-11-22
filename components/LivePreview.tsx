@@ -33,6 +33,16 @@ declare global {
 
 // --- Components ---
 
+/**
+ * Render a file icon based on the file extension.
+ *
+ * The function checks the file name's extension and returns a corresponding icon wrapped in a span with specific styling.
+ * It handles various file types including HTML, CSS, JavaScript, TypeScript, and JSON, each with a unique color scheme.
+ * If the file extension does not match any known types, a default icon is returned.
+ *
+ * @param name - The name of the file, which determines the icon to be displayed.
+ * @returns A JSX element representing the appropriate file icon.
+ */
 const FileIcon = ({ name }: { name: string }) => {
     if (name.endsWith('.html')) return <span className="text-orange-500"><CodeBracketIcon className="w-4 h-4" /></span>;
     if (name.endsWith('.css')) return <span className="text-blue-400"><DocumentTextIcon className="w-4 h-4" /></span>;
@@ -41,6 +51,9 @@ const FileIcon = ({ name }: { name: string }) => {
     return <DocumentIcon className="w-4 h-4 text-zinc-500" />;
 };
 
+/**
+ * Renders a file explorer component with a list of files.
+ */
 const FileExplorer = ({ files, activeFile, onSelectFile }: { files: Record<string, any>, activeFile: string, onSelectFile: (f: string) => void }) => {
     return (
         <div className="w-48 bg-[#121214] border-r border-zinc-800 flex flex-col shrink-0">
@@ -64,6 +77,19 @@ const FileExplorer = ({ files, activeFile, onSelectFile }: { files: Record<strin
     );
 };
 
+/**
+ * Renders a loading step component with visual indicators based on its state.
+ *
+ * The component displays a loading step with a text label and an indicator that changes
+ * based on the `active` and `completed` props. If the step is completed, a checkmark icon
+ * is shown; if it is active, a pulsing dot is displayed; otherwise, a static dot is rendered.
+ * The opacity and translation of the component also adjust based on its state.
+ *
+ * @param {Object} props - The properties for the loading step.
+ * @param {string} props.text - The text to display for the loading step.
+ * @param {boolean} props.active - Indicates if the loading step is currently active.
+ * @param {boolean} props.completed - Indicates if the loading step has been completed.
+ */
 const LoadingStep = ({ text, active, completed }: { text: string, active: boolean, completed: boolean }) => (
     <div className={`flex items-center space-x-3 transition-all duration-500 ${active || completed ? 'opacity-100 translate-x-0' : 'opacity-30 translate-x-4'}`}>
         <div className={`w-4 h-4 flex items-center justify-center ${completed ? 'text-green-400' : active ? 'text-blue-400' : 'text-zinc-700'}`}>
@@ -124,6 +150,15 @@ const CodeEditor = ({
 
     // Keyboard Shortcuts for Undo/Redo
     useEffect(() => {
+        /**
+         * Handles keyboard events for undo and redo actions.
+         *
+         * The function checks if the input is in read-only mode. If not, it listens for specific key combinations:
+         * Ctrl+Z or Cmd+Z for undo, and Ctrl+Y for redo. It prevents the default action and calls the appropriate
+         * callback functions onUndo or onRedo based on the key pressed and the state of the shift key.
+         *
+         * @param e - The keyboard event triggered by the user.
+         */
         const handleKeyDown = (e: KeyboardEvent) => {
             if (readOnly) return;
             // Undo: Ctrl+Z or Cmd+Z
@@ -145,6 +180,9 @@ const CodeEditor = ({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [onUndo, onRedo, readOnly]);
 
+    /**
+     * Synchronizes the scroll position of a textarea and a preformatted text element.
+     */
     const handleScroll = () => {
         if (textareaRef.current && preRef.current) {
             preRef.current.scrollTop = textareaRef.current.scrollTop;
@@ -201,6 +239,18 @@ const CodeEditor = ({
 
 // --- Command Palette ---
 
+/**
+ * Renders a command palette for file selection and action execution.
+ *
+ * The CommandPalette component manages its open state, handles user input for searching files and actions, and allows navigation through the results using keyboard events. It filters the provided files and actions based on the user's query, updates the selection index, and executes the corresponding action or file selection upon user confirmation. The component also handles closing the palette and focusing the input field when opened.
+ *
+ * @param isOpen - A boolean indicating whether the command palette is currently open.
+ * @param onClose - A function to be called when the command palette is closed.
+ * @param files - An array of file names to be displayed in the command palette.
+ * @param onSelectFile - A function to be called when a file is selected.
+ * @param actions - An array of action objects, each containing an id, label, icon, action function, and an optional shortcut.
+ * @returns A JSX element representing the command palette, or null if it is not open.
+ */
 const CommandPalette = ({ 
     isOpen, 
     onClose, 
@@ -234,6 +284,13 @@ const CommandPalette = ({
     }, [isOpen]);
 
     useEffect(() => {
+        /**
+         * Handles keyboard events for navigation and selection.
+         *
+         * The function listens for specific key presses: 'ArrowDown' and 'ArrowUp' to navigate through a list, 'Enter' to select an item, and 'Escape' to close the interface. It prevents default actions for these keys and updates the index accordingly. If an item is selected, it checks its type and either triggers a file selection or an action associated with the item.
+         *
+         * @param e - The keyboard event triggered by user interaction.
+         */
         const keyHandler = (e: KeyboardEvent) => {
              if(!isOpen) return;
              if(e.key === 'ArrowDown') {
@@ -306,6 +363,16 @@ const CommandPalette = ({
 
 // --- Logic for Virtual Bundling ---
 
+/**
+ * Bundles HTML, CSS, and JavaScript files into a single HTML document.
+ *
+ * The function first checks for the presence of an 'index.html' file. If found, it initializes the HTML content with its content.
+ * It then iterates over the provided files to inject CSS styles and JavaScript scripts into the HTML.
+ * CSS files are injected within `<style>` tags, while JavaScript files are injected within `<script>` tags,
+ * handling both linked and unlinked cases for each type of file.
+ *
+ * @param files - A record of file names to their respective content objects.
+ */
 const bundleFiles = (files: Record<string, { content: string }>) => {
     const indexFile = files['index.html'];
     if (!indexFile) return "<h1>Error: index.html not found</h1>";
@@ -342,6 +409,23 @@ const bundleFiles = (files: Record<string, { content: string }>) => {
     return html;
 };
 
+/**
+ * LivePreview component for rendering a live coding environment with file management and preview capabilities.
+ *
+ * This component manages the state for files, loading status, view modes, and user interactions. It includes features such as auto-saving, undo/redo functionality, and exporting projects. The component also handles intelligent syncing of files based on project changes and provides a command palette for quick actions.
+ *
+ * @param {LivePreviewProps} props - The properties for the LivePreview component.
+ * @param {Creation} props.creation - The current project creation data.
+ * @param {boolean} props.isLoading - Indicates if the project is currently loading.
+ * @param {boolean} props.isRefining - Indicates if the project is currently being refined.
+ * @param {boolean} props.isFocused - Indicates if the component is currently focused.
+ * @param {boolean} props.isPro - Indicates if the user has a pro account.
+ * @param {function} props.onReset - Callback function to reset the preview.
+ * @param {function} props.onRefine - Callback function to submit refinement prompts.
+ * @param {function} props.onTriggerUpgrade - Callback function to trigger an upgrade.
+ * @param {function} props.onAutoSave - Callback function for auto-saving files.
+ * @returns {JSX.Element} The rendered LivePreview component.
+ */
 export const LivePreview: React.FC<LivePreviewProps> = ({ creation, isLoading, isRefining, isFocused, isPro, onReset, onRefine, onTriggerUpgrade, onAutoSave }) => {
     const [loadingStep, setLoadingStep] = useState(0);
     const [viewMode, setViewMode] = useState<ViewMode>('full');
@@ -477,6 +561,9 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ creation, isLoading, i
 
     // Command Palette Shortcut
     useEffect(() => {
+        /**
+         * Toggles the visibility of the palette when 'k' is pressed with meta or control key.
+         */
         const onKeyDown = (e: KeyboardEvent) => {
           if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault();
@@ -514,6 +601,13 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ creation, isLoading, i
     }, [isDragging, resize, stopResizing]);
 
     // Handlers
+    /**
+     * Handles changes to the file content.
+     *
+     * This function updates the file's content and manages the edit history. It checks if the user is in a pro mode before proceeding. If more than 1 second has passed since the last edit, it captures the current state of the files into a history array, ensuring that the history does not exceed 30 entries. It also resets the future redo stack and updates the last edit time. Finally, it marks the current file as unsaved.
+     *
+     * @param newContent - The new content to be set for the active file.
+     */
     const handleFileChange = (newContent: string) => {
         if (!isPro) return; 
 
@@ -536,6 +630,9 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ creation, isLoading, i
         setSaveStatus('unsaved');
     };
     
+    /**
+     * Reverts to the previous state by updating files and history.
+     */
     const handleUndo = () => {
         if (past.length === 0) return;
         const previous = past[past.length - 1];
@@ -558,6 +655,9 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ creation, isLoading, i
         setSaveStatus('unsaved');
     };
 
+    /**
+     * Handles the submission of the refine form.
+     */
     const handleRefineSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (refinementPrompt.trim() && !isRefining) {
