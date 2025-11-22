@@ -11,12 +11,25 @@ type ShortcutContextValue = {
 
 const Ctx = createContext<ShortcutContextValue | null>(null)
 
+/**
+ * Retrieves the context value from ShortcutProvider.
+ */
 export const useShortcuts = () => {
   const v = useContext(Ctx)
   if (!v) throw new Error('ShortcutProvider missing')
   return v
 }
 
+/**
+ * Provides a context for managing keyboard shortcuts and displaying feedback to the user.
+ *
+ * The ShortcutProvider initializes a ShortcutManager and sets up a feedback handler to display toast notifications
+ * whenever a command is executed. It uses a React context to provide access to the manager and related functions
+ * for registering commands, setting context, and showing feedback. The component also manages the display of
+ * toast notifications, which are removed after a short duration.
+ *
+ * @param {React.ReactNode} children - The child components to be rendered within the provider.
+ */
 export const ShortcutProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const managerRef = useRef<ShortcutManager | null>(null)
   const [toasts, setToasts] = useState<{ id: number; label: string; shortcut?: string }[]>([])
@@ -62,6 +75,7 @@ export function parseShortcutInput(value: string): ShortcutSequence[] {
   return value.split(',').map(x => sequenceFromString(x.trim())).filter(seq => seq.length > 0)
 }
 
+/** Converts an array of ShortcutSequence to a string representation. */
 export function stringifyShortcutSequences(seqs: ShortcutSequence[]): string {
   return seqs.map(s => sequenceToString(s)).join(', ')
 }
