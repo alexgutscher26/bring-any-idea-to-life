@@ -2,6 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useShortcuts, parseShortcutInput, stringifyShortcutSequences } from './ShortcutProvider'
 import { ArrowDownTrayIcon, ArrowPathIcon, NoSymbolIcon, ShieldExclamationIcon } from '@heroicons/react/24/outline'
 
+/**
+ * Renders a shortcut manager interface for managing keyboard shortcuts.
+ *
+ * This component utilizes the useShortcuts hook to access the shortcut manager, allowing users to search, enable/disable, update, export, and import shortcuts. It handles keyboard events for closing the manager and manages state for search input and activation delay. The component also displays any conflicts detected in the shortcuts.
+ *
+ * @param {Object} props - The component props.
+ * @param {boolean} props.isOpen - Indicates whether the shortcut manager is open.
+ * @param {function} props.onClose - Callback function to close the shortcut manager.
+ * @returns {JSX.Element | null} The rendered component or null if not open.
+ */
 export const ShortcutManager: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const { manager } = useShortcuts()
   const [search, setSearch] = useState('')
@@ -15,6 +25,9 @@ export const ShortcutManager: React.FC<{ isOpen: boolean; onClose: () => void }>
   }, [isOpen])
 
   useEffect(() => {
+    /**
+     * Handles the keyboard event to close on 'escape' key press.
+     */
     const handler = (e: KeyboardEvent) => { if (e.key.toLowerCase() === 'escape') onClose() }
     if (isOpen) window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -22,7 +35,13 @@ export const ShortcutManager: React.FC<{ isOpen: boolean; onClose: () => void }>
 
   const filtered = list.filter(c => c.label.toLowerCase().includes(search.toLowerCase()) || c.id.toLowerCase().includes(search.toLowerCase()))
 
+  /**
+   * Toggles the enabled state of an item by its ID.
+   */
   const handleToggle = (id: string, enabled: boolean) => manager.enable(id, enabled)
+  /**
+   * Updates a shortcut with the given ID using the parsed input.
+   */
   const handleUpdate = (id: string, raw: string) => {
     const seqs = parseShortcutInput(raw)
     manager.updateShortcut(id, seqs)
