@@ -106,6 +106,21 @@ const LoadingStep = ({ text, active, completed }: { text: string, active: boolea
     </div>
 );
 
+/**
+ * Renders a code editor component with syntax highlighting and undo/redo functionality.
+ *
+ * The component utilizes Prism.js for syntax highlighting based on the file extension. It manages the scroll synchronization between a textarea and a preformatted text element. The editor can be in read-only mode, displaying a prompt to upgrade for editing capabilities. It also handles changes to the code and triggers appropriate callbacks for undo and redo actions.
+ *
+ * @param code - The current code content to be displayed in the editor.
+ * @param fileName - The name of the file being edited, used for determining syntax highlighting.
+ * @param onChange - Callback function to handle changes in the code.
+ * @param readOnly - Boolean indicating if the editor is in read-only mode.
+ * @param onTriggerUpgrade - Optional callback for triggering an upgrade to a pro version.
+ * @param onUndo - Optional callback for handling undo actions.
+ * @param onRedo - Optional callback for handling redo actions.
+ * @param canUndo - Optional boolean indicating if an undo action is possible.
+ * @param canRedo - Optional boolean indicating if a redo action is possible.
+ */
 const CodeEditor = ({ 
     code, 
     fileName, 
@@ -569,6 +584,14 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ creation, isLoading, i
     }, [isDragging, resize, stopResizing]);
 
     useEffect(() => {
+        /**
+         * Handles the auto-saving process for files.
+         *
+         * This function checks if the necessary conditions for auto-saving are met, including the presence of
+         * `creation`, `onAutoSave`, and non-empty `files`. If conditions are satisfied, it updates the save status
+         * to 'saving', invokes the `onAutoSave` callback with the `files`, updates the last saved time, and
+         * sets a timeout to change the save status to 'saved' after 500 milliseconds.
+         */
         const handler = () => {
             if (!creation || !onAutoSave || Object.keys(files).length === 0) return
             setSaveStatus('saving')
