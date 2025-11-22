@@ -12,6 +12,9 @@ interface InputAreaProps {
   fileInputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
+/**
+ * A React component that cycles through an array of text phrases with a fade effect.
+ */
 const CyclingText = () => {
     const words = [
         "a napkin sketch",
@@ -46,6 +49,9 @@ export const InputArea: React.FC<InputAreaProps> = ({ onGenerate, isGenerating, 
   const [isDragging, setIsDragging] = useState(false);
   const [prompt, setPrompt] = useState("");
 
+  /**
+   * Handles the uploaded file by checking its type and generating output if valid.
+   */
   const handleFile = (file: File) => {
     if (file.type.startsWith('image/') || file.type === 'application/pdf') {
       onGenerate(prompt, file);
@@ -54,6 +60,9 @@ export const InputArea: React.FC<InputAreaProps> = ({ onGenerate, isGenerating, 
     }
   };
 
+  /**
+   * Handles file input changes and processes the selected file.
+   */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
         handleFile(e.target.files[0]);
@@ -83,17 +92,30 @@ export const InputArea: React.FC<InputAreaProps> = ({ onGenerate, isGenerating, 
     setIsDragging(false);
   }, []);
 
+  /**
+   * Handles the submission of text input.
+   *
+   * This function checks if the prompt is not empty, if the submission is not disabled,
+   * and if a generation process is not currently in progress. If all conditions are met,
+   * it calls the onGenerate function with the provided prompt.
+   */
   const handleTextSubmit = () => {
       if (!prompt.trim() || disabled || isGenerating) return;
       onGenerate(prompt);
   };
 
+  /**
+   * Sets the prompt text without auto-submitting.
+   */
   const handleQuickPrompt = (text: string) => {
       setPrompt(text);
       // We don't auto-submit to let the user tweak it if they want,
       // or we could auto-submit. Let's auto-focus instead (implicit in React state update + render)
   };
 
+  /**
+   * Handles the creation of a sample SVG wireframe and triggers the generation process.
+   */
   const handleSampleWireframe = () => {
       if (disabled || isGenerating) return;
       // Create a dummy SVG wireframe

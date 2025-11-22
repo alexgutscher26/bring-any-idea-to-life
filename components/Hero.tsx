@@ -7,6 +7,23 @@ import { DocumentTextIcon, CalculatorIcon, PuzzlePieceIcon, ClipboardDocumentChe
 import { CursorArrowRaysIcon, ChartBarIcon, SparklesIcon } from '@heroicons/react/24/solid';
 
 // Component that simulates drawing a wireframe then filling it with life
+/**
+ * Renders a drawing transformation animation between two icons.
+ *
+ * The component manages a state that cycles through three stages: hidden, drawing, and alive.
+ * It uses a delay to initiate the drawing cycle and sets intervals to repeat the cycle.
+ * The icons are displayed with transitions and effects based on the current stage,
+ * and a label appears when the final stage is reached.
+ *
+ * @param {Object} props - The properties for the component.
+ * @param {React.ElementType} props.initialIcon - The icon to display during the drawing stage.
+ * @param {React.ElementType} props.finalIcon - The icon to display in the alive stage.
+ * @param {string} props.label - The label to display in the alive stage.
+ * @param {number} props.delay - The initial delay before starting the drawing cycle.
+ * @param {string} props.x - The horizontal position of the component.
+ * @param {string} props.y - The vertical position of the component.
+ * @param {number} [props.rotation=0] - The rotation angle of the component.
+ */
 const DrawingTransformation = ({ 
   initialIcon: InitialIcon, 
   finalIcon: FinalIcon, 
@@ -27,6 +44,9 @@ const DrawingTransformation = ({
   const [stage, setStage] = useState(0); // 0: Hidden, 1: Drawing, 2: Alive
 
   useEffect(() => {
+    /**
+     * Initiates a cycle of stage changes with delays.
+     */
     const cycle = () => {
       setStage(0);
       setTimeout(() => setStage(1), 500); // Start drawing

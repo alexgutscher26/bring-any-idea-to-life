@@ -33,6 +33,9 @@ class LivePreviewErrorBoundary extends React.Component<ErrorBoundaryProps, Error
     this.state = { hasError: false };
   }
 
+  /**
+   * Updates state based on an error.
+   */
   static getDerivedStateFromError(error: any) {
     return { hasError: true };
   }
@@ -46,6 +49,9 @@ class LivePreviewErrorBoundary extends React.Component<ErrorBoundaryProps, Error
       this.props.onClose();
   }
 
+  /**
+   * Renders an error message if there is a rendering error; otherwise, renders children.
+   */
   render() {
     if (this.state.hasError) {
        return (
@@ -65,6 +71,13 @@ class LivePreviewErrorBoundary extends React.Component<ErrorBoundaryProps, Error
   }
 }
 
+/**
+ * Main application component for the Gemini 3.0 interface.
+ *
+ * This component manages the state for user sessions, creation history, folder management, and file uploads. It initializes user data, handles user plan upgrades, and manages the generation and refinement of creations. The component also provides functionality for importing files and creating folders, while ensuring that the UI reflects the current state of the application.
+ *
+ * @returns A React functional component rendering the application UI.
+ */
 const App: React.FC = () => {
   const [activeCreation, setActiveCreation] = useState<Creation | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -80,6 +93,16 @@ const App: React.FC = () => {
   const [showSignUp, setShowSignUp] = useState(false)
 
   useEffect(() => {
+    /**
+     * Initialize application data and user session information.
+     *
+     * This function sets the current user information based on the session, processes the checkout status,
+     * retrieves folders and history from the database, and manages local storage for app history.
+     * It also checks the user's plan and updates the application state accordingly.
+     * Error handling is implemented for various asynchronous operations to ensure robustness.
+     *
+     * @returns {Promise<void>} A promise that resolves when the initialization is complete.
+     */
     const initData = async () => {
       // Session user
       setCurrentUserInfo(session?.user ? { id: session.user.id, email: session.user.email, name: session.user.name } : null);
@@ -130,6 +153,9 @@ const App: React.FC = () => {
 
   useEffect(() => { /* folders persist via API */ }, [folders]);
 
+  /**
+   * Handles the upgrade process to a PRO user plan.
+   */
   const handleUpgrade = async () => {
       try { await setUserPlan('PRO'); setIsPro(true); } catch (e) { setIsPro(true); }
   };
@@ -148,6 +174,17 @@ const App: React.FC = () => {
     });
   };
 
+  /**
+   * Handles the generation of a new creation based on the provided prompt and optional file.
+   *
+   * This function sets the generating state, processes the input file to convert it to base64 if provided,
+   * and enqueues a request to generate files based on the prompt text. If files are generated successfully,
+   * it creates a new creation object, saves it, and updates the active creation and history.
+   * Errors during the process are caught and logged, with a user alert for failure.
+   *
+   * @param promptText - The text prompt used for generating the creation.
+   * @param file - An optional file to be processed and included in the creation.
+   */
   const handleGenerate = async (promptText: string, file?: File) => {
     setIsGenerating(true);
     setActiveCreation(null);
@@ -202,6 +239,13 @@ const App: React.FC = () => {
       }
   };
 
+  /**
+   * Handles the auto-saving of creation files.
+   *
+   * This function checks if there is an active creation process. If so, it updates the creation object with the provided files and the current timestamp. It then attempts to save the updated creation using the saveCreation function. If the save is successful, it updates the history and the active creation state. In case of an error during the save process, it logs the error to the console.
+   *
+   * @param files - A record of files where each key is a string and the value is an object containing the file content.
+   */
   const handleAutoSave = async (files: Record<string, { content: string }>) => {
       if (!activeCreation) return;
       const updated = { ...activeCreation, files, timestamp: new Date() };
@@ -215,9 +259,21 @@ const App: React.FC = () => {
       }
   };
 
+  /**
+   * Resets the creation state and stops generation and refining processes.
+   */
   const handleReset = () => { setActiveCreation(null); setIsGenerating(false); setIsRefining(false); };
+  /**
+   * Triggers a file input reset and simulates a click after a short delay.
+   */
   const handleNewUpload = () => { handleReset(); setTimeout(() => { fileInputRef.current?.click(); }, 50); };
+  /**
+   * Sets the active creation to the provided creation.
+   */
   const handleSelectCreation = (creation: Creation) => setActiveCreation(creation);
+  /**
+   * Triggers a click event on the import input reference.
+   */
   const handleImportClick = () => importInputRef.current?.click();
   const handleCreateFolder = async (name: string) => {
     if (!session?.user?.id) { setShowSignIn(true); return; }
@@ -232,6 +288,16 @@ const App: React.FC = () => {
     try { await renameFolder(id, name); setFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f)); }
     catch (e: any) { console.error('Rename folder failed', e); alert(e?.message || 'Failed to rename folder'); }
   };
+  /**
+   * Handles the creation of a move operation for a specified item.
+   *
+   * This function searches for an item in the history by its creationId. If found, it updates the item's folderId
+   * and attempts to save the updated item using the saveCreation function. Upon successful save, it updates the
+   * history state to reflect the changes. If the save operation fails, an error is logged to the console.
+   *
+   * @param creationId - The ID of the creation to be moved.
+   * @param folderId - The ID of the folder to which the creation will be moved, or undefined if no folder is specified.
+   */
   const handleMoveCreation = async (creationId: string, folderId: string | undefined) => {
       const item = history.find(c => c.id === creationId);
       if (item) {
@@ -243,6 +309,16 @@ const App: React.FC = () => {
       }
   };
   
+  /**
+   * Handles the import of a file through a file input change event.
+   *
+   * This function reads the selected file, parses its content as JSON, and checks for the presence of specific properties.
+   * If valid, it creates a new Creation object, saves it, updates the history, and sets the active creation.
+   * In case of errors during parsing or saving, it logs the error and alerts the user.
+   * Finally, it resets the file input value.
+   *
+   * @param e - The change event from the file input element.
+   */
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;

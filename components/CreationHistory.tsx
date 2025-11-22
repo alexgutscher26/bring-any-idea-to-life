@@ -62,14 +62,23 @@ export const CreationHistory: React.FC<CreationHistoryProps> = ({
       }
   }, [isCreatingFolder]);
 
+  /**
+   * Handles the start of a drag event by setting data and allowing movement.
+   */
   const handleDragStart = (e: React.DragEvent, creationId: string) => {
       e.dataTransfer.setData("creationId", creationId);
       e.dataTransfer.effectAllowed = "move";
       setIsDragging(true);
   };
 
+  /**
+   * Stops the dragging state.
+   */
   const handleDragEnd = () => setIsDragging(false);
 
+  /**
+   * Handles the drop event on a folder to move a creation.
+   */
   const handleDropOnFolder = (e: React.DragEvent, targetFolderId: string) => {
       e.preventDefault();
       const creationId = e.dataTransfer.getData("creationId");
@@ -77,6 +86,9 @@ export const CreationHistory: React.FC<CreationHistoryProps> = ({
       setIsDragging(false);
   };
 
+  /**
+   * Handles the drop event on the back area.
+   */
   const handleDropOnBack = (e: React.DragEvent) => {
       e.preventDefault();
       const creationId = e.dataTransfer.getData("creationId");
@@ -84,15 +96,30 @@ export const CreationHistory: React.FC<CreationHistoryProps> = ({
       setIsDragging(false);
   };
 
+  /**
+   * Prevents the default drag event and sets the drop effect to "move".
+   */
   const allowDrop = (e: React.DragEvent) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
   };
 
   const startEditing = (folder: Folder) => { setEditingFolderId(folder.id); setTempFolderName(folder.name); };
+  /**
+   * Saves the edited folder name if valid and resets the editing state.
+   */
   const saveEditing = () => { if (editingFolderId && tempFolderName.trim()) onRenameFolder(editingFolderId, tempFolderName.trim()); setEditingFolderId(null); };
+  /**
+   * Initiates the creation of a new folder.
+   */
   const handleStartCreating = () => { setIsCreatingFolder(true); setNewFolderName("New Folder"); };
+  /**
+   * Handles the confirmation of creating a new folder.
+   */
   const handleConfirmCreating = () => { if (newFolderName.trim()) onCreateFolder(newFolderName.trim()); setIsCreatingFolder(false); };
+  /**
+   * Cancels the folder creation process.
+   */
   const handleCancelCreating = () => setIsCreatingFolder(false);
 
   return (
