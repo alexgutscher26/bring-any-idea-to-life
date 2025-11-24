@@ -53,7 +53,7 @@
 - [ ] Billing proration and refund handling
 - [ ] Audit logs for admin review
 - [x] Keyboard shortcuts for power users
-- [ ] Idle/timeout handling for long‑running tasks
+- [x] Idle/timeout handling for long‑running tasks
 
 ## Short-Term Priorities
 
