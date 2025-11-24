@@ -1,7 +1,8 @@
 import dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import { Pool } from 'pg'
-import { PrismaClient } from '@prisma/client'
+import prismaPkg from '@prisma/client'
+const { PrismaClient } = prismaPkg
 import { PrismaPg } from '@prisma/adapter-pg'
 
 let prismaInstance
