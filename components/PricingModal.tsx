@@ -13,9 +13,30 @@ interface PricingModalProps {
   onUpgrade?: () => void;
 }
 
+/**
+ * Renders a pricing modal for upgrading plans.
+ *
+ * The component checks if the modal is open and displays the pricing options. It includes a button to upgrade to the Pro plan, which triggers an asynchronous function to create a checkout session with Stripe. The function handles various scenarios, including missing configuration and response errors, to ensure a smooth user experience.
+ *
+ * @param {PricingModalProps} props - The properties for the PricingModal component.
+ * @param {boolean} props.isOpen - Indicates if the modal is currently open.
+ * @param {function} props.onClose - Callback function to close the modal.
+ * @param {function} props.onUpgrade - Callback function to handle upgrade actions.
+ * @returns {JSX.Element | null} The rendered modal or null if not open.
+ */
 export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, onUpgrade }) => {
   if (!isOpen) return null;
 
+  /**
+   * Handles the click event for upgrading a plan by initiating a checkout session.
+   *
+   * This function retrieves the Stripe publishable key from the environment variables and checks its presence.
+   * It constructs the API URL for creating a checkout session and sends a POST request with the plan details.
+   * Depending on the response, it either redirects to the Stripe checkout or alerts the user of any issues encountered.
+   *
+   * @returns {Promise<void>} A promise that resolves when the checkout process is initiated.
+   * @throws {Error} If there is an issue with the checkout process or network request.
+   */
   const handleUpgradeClick = async () => {
       try {
           const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
