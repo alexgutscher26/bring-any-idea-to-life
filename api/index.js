@@ -14,13 +14,14 @@ export default async function handler(req, res) {
   const origin = getOrigin(req)
   const url = new URL(req.url || '/', origin)
   const method = req.method || 'GET'
+  const path = url.searchParams.get('path') ? `/api/${url.searchParams.get('path')}` : url.pathname
 
-  if (url.pathname.startsWith('/api/auth')) {
+  if (path.startsWith('/api/auth')) {
     try {
       const body = ['GET', 'HEAD'].includes(method) ? undefined : await readBody(req)
-      const request = new Request(new URL(url.pathname + url.search, origin), { method, headers: req.headers, body })
+      const request = new Request(new URL(path + url.search, origin), { method, headers: req.headers, body })
       const response = await getAuth().handler(request)
-      if (url.pathname.endsWith('/get-session') && response.status >= 400) {
+      if (path.endsWith('/get-session') && response.status >= 400) {
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ data: null }))
         return
@@ -31,7 +32,7 @@ export default async function handler(req, res) {
       const ab = await response.arrayBuffer()
       res.end(Buffer.from(ab))
     } catch {
-      if (url.pathname.endsWith('/get-session')) {
+      if (path.endsWith('/get-session')) {
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ data: null }))
       } else {
@@ -42,17 +43,17 @@ export default async function handler(req, res) {
     return
   }
 
-  if (url.pathname === '/api/health/db') {
+  if (path === '/api/health/db') {
     try { await prisma.$queryRaw`SELECT 1`; return json(res, 200, { ok: true }) } catch { return json(res, 500, { ok: false }) }
   }
 
-  if (url.pathname === '/api/creations' && method === 'GET') {
+  if (path === '/api/creations' && method === 'GET') {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
     try { const items = await prisma.creation.findMany({ where: { userId }, orderBy: { timestamp: 'desc' } }); return json(res, 200, items) } catch { return json(res, 500, { error: 'Failed to fetch' }) }
   }
 
-  if (url.pathname === '/api/creations' && method === 'POST') {
+  if (path === '/api/creations' && method === 'POST') {
     const userId = req.headers['x-user-id']?.toString()
     const userEmail = req.headers['x-user-email']?.toString() || ''
     const userName = req.headers['x-user-name']?.toString() || ''
@@ -70,20 +71,20 @@ export default async function handler(req, res) {
     } catch { return json(res, 400, { error: 'Invalid body' }) }
   }
 
-  if (url.pathname.startsWith('/api/creations/') && method === 'DELETE') {
+  if (path.startsWith('/api/creations/') && method === 'DELETE') {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
-    const id = url.pathname.split('/').pop()
+    const id = path.split('/').pop()
     try { await prisma.creation.delete({ where: { id } }); return json(res, 200, { ok: true }) } catch { return json(res, 404, { error: 'Not found' }) }
   }
 
-  if (url.pathname === '/api/folders' && method === 'GET') {
+  if (path === '/api/folders' && method === 'GET') {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
     try { const items = await prisma.folder.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } }); return json(res, 200, items) } catch { return json(res, 500, { error: 'Failed to fetch' }) }
   }
 
-  if (url.pathname === '/api/folders' && method === 'POST') {
+  if (path === '/api/folders' && method === 'POST') {
     const userId = req.headers['x-user-id']?.toString()
     const userEmail = req.headers['x-user-email']?.toString() || ''
     const userName = req.headers['x-user-name']?.toString() || ''
@@ -98,28 +99,28 @@ export default async function handler(req, res) {
     } catch { return json(res, 500, { error: 'Failed to create folder' }) }
   }
 
-  if (url.pathname.startsWith('/api/folders/') && method === 'PUT') {
+  if (path.startsWith('/api/folders/') && method === 'PUT') {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
-    const id = url.pathname.split('/').pop()
+    const id = path.split('/').pop()
     const raw = await readBody(req)
     try { const body = JSON.parse(raw || '{}'); const folder = await prisma.folder.update({ where: { id }, data: { name: body.name, updatedAt: new Date() } }); return json(res, 200, folder) } catch { return json(res, 404, { error: 'Not found' }) }
   }
 
-  if (url.pathname === '/api/user/plan' && method === 'GET') {
+  if (path === '/api/user/plan' && method === 'GET') {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
     try { const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } }); return json(res, 200, { plan: user?.plan || 'HOBBY' }) } catch { return json(res, 500, { error: 'Failed to fetch plan' }) }
   }
 
-  if (url.pathname === '/api/user/plan' && method === 'POST') {
+  if (path === '/api/user/plan' && method === 'POST') {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
     const raw = await readBody(req)
     try { const body = JSON.parse(raw || '{}'); const next = (body.plan || '').toUpperCase(); if (!['HOBBY', 'PRO'].includes(next)) return json(res, 400, { error: 'Invalid plan' }); await prisma.user.update({ where: { id: userId }, data: { plan: next } }); return json(res, 200, { ok: true }) } catch { return json(res, 400, { error: 'Invalid body' }) }
   }
 
-  if (url.pathname === '/api/create-checkout-session' && method === 'POST') {
+  if (path === '/api/create-checkout-session' && method === 'POST') {
     if (!stripe) return json(res, 500, { error: 'Missing STRIPE_SECRET_KEY' })
     const raw = await readBody(req)
     try {
@@ -138,7 +139,7 @@ export default async function handler(req, res) {
     } catch { return json(res, 500, { error: 'Failed to create checkout session' }) }
   }
 
-  if (url.pathname === '/api/webhook' && method === 'POST') {
+  if (path === '/api/webhook' && method === 'POST') {
     if (!stripe) return json(res, 500, { error: 'Missing STRIPE_SECRET_KEY' })
     if (!webhookSecret) return json(res, 200, { received: true })
     try {
