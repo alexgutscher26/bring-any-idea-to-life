@@ -14,6 +14,7 @@
     ,"prisma:pull": "npx prisma db pull"
     ,"prisma:generate": "npx prisma generate"
     ,"test": "vitest"
+    ,"postinstall": "prisma generate"
   },
   "dependencies": {
     "react": "^19.2.0",
