@@ -8,6 +8,11 @@ import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 let authInstance
+/**
+ * Retrieves the authentication instance, creating it if it does not already exist.
+ *
+ * The function checks if an existing `authInstance` is available. If not, it initializes a new database connection using a connection string from the environment variable `DATABASE_URL`. It then creates a new `PrismaClient` with a PostgreSQL adapter and configures the authentication settings, including email and password options and trusted origins. Finally, it returns the `authInstance`.
+ */
 export function getAuth() {
   if (authInstance) return authInstance
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
