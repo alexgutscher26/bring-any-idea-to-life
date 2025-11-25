@@ -77,7 +77,7 @@ class LivePreviewErrorBoundary extends React.Component<ErrorBoundaryProps, Error
 /**
  * Main application component for the Gemini 3.0 interface.
  *
- * This component manages the state for user sessions, creation history, folder management, and file uploads. It initializes user data, handles user plan upgrades, and manages the generation and refinement of creations. The component also provides functionality for importing files and creating folders, while ensuring that the UI reflects the current state of the application.
+ * This component manages the state for user sessions, creation history, folder management, and file uploads. It initializes user data, handles user plan upgrades, and manages the generation and refinement of creations. The component also provides functionality for importing files and creating folders, while ensuring that the UI reflects the current state of the application. Various effects are used to handle data initialization and context updates based on user interactions.
  *
  * @returns A React functional component rendering the application UI.
  */
