@@ -18,6 +18,7 @@ import { SignInModal } from './components/SignInModal'
 import { SignUpModal } from './components/SignUpModal'
 import { useShortcuts } from './components/ShortcutProvider'
 import { ShortcutManager } from './components/ShortcutManager'
+import { Analytics } from '@vercel/analytics/react'
 
 // Error Boundary for LivePreview
 interface ErrorBoundaryProps {
@@ -406,7 +407,7 @@ const App: React.FC = () => {
                     onTriggerUpgrade={() => setShowPricing(true)}
                 />
             </div>
-            <a href="https://x.com/ammaar" target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-zinc-400 text-xs font-mono transition-colors pb-2">Created by @ammaar</a>
+            <a href="https://x.com/snackforcode" target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-zinc-400 text-xs font-mono transition-colors pb-2">Created by @ammaar</a>
         </div>
       </div>
       
@@ -425,6 +426,7 @@ const App: React.FC = () => {
       <SignUpModal isOpen={showSignUp} onClose={() => setShowSignUp(false)} />
       <PricingModal isOpen={showPricing} onClose={() => setShowPricing(false)} onUpgrade={handleUpgrade} />
       <ShortcutManager isOpen={showShortcutManager} onClose={() => setShowShortcutManager(false)} />
+      <Analytics />
     </div>
   );
 };

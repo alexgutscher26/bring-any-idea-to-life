@@ -2,7 +2,7 @@ import dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 import Stripe from 'stripe'
 import { getAuth } from '../server/auth.js'
-import { prisma } from '../server/db.js'
+import { getPrisma } from '../server/db.js'
 import { json, getOrigin, readBody } from '../server/util.js'
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY || ''
@@ -54,13 +54,13 @@ export default async function handler(req, res) {
   }
 
   if (path === '/api/health/db') {
-    try { await prisma.$queryRaw`SELECT 1`; return json(res, 200, { ok: true }) } catch { return json(res, 500, { ok: false }) }
+    try { await getPrisma().$queryRaw`SELECT 1`; return json(res, 200, { ok: true }) } catch { return json(res, 500, { ok: false }) }
   }
 
   if (path === '/api/creations' && method === 'GET') {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
-    try { const items = await prisma.creation.findMany({ where: { userId }, orderBy: { timestamp: 'desc' } }); return json(res, 200, items) } catch { return json(res, 500, { error: 'Failed to fetch' }) }
+    try { const items = await getPrisma().creation.findMany({ where: { userId }, orderBy: { timestamp: 'desc' } }); return json(res, 200, items) } catch { return json(res, 500, { error: 'Failed to fetch' }) }
   }
 
   if (path === '/api/creations' && method === 'POST') {
@@ -71,8 +71,8 @@ export default async function handler(req, res) {
     const raw = await readBody(req)
     try {
       const body = JSON.parse(raw || '{}')
-      await prisma.user.upsert({ where: { id: userId }, update: { updatedAt: new Date() }, create: { id: userId, name: userName || 'User', email: userEmail || `${userId}@example.local`, updatedAt: new Date() } })
-      const creation = await prisma.creation.upsert({
+      await getPrisma().user.upsert({ where: { id: userId }, update: { updatedAt: new Date() }, create: { id: userId, name: userName || 'User', email: userEmail || `${userId}@example.local`, updatedAt: new Date() } })
+      const creation = await getPrisma().creation.upsert({
         where: { id: body.id },
         update: { name: body.name, files: body.files, originalImage: body.originalImage, folderId: body.folderId, timestamp: new Date(body.timestamp || Date.now()), updatedAt: new Date() },
         create: { id: body.id, userId, name: body.name, files: body.files, originalImage: body.originalImage, folderId: body.folderId, timestamp: new Date(body.timestamp || Date.now()), updatedAt: new Date() }
@@ -85,13 +85,13 @@ export default async function handler(req, res) {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
     const id = path.split('/').pop()
-    try { await prisma.creation.delete({ where: { id } }); return json(res, 200, { ok: true }) } catch { return json(res, 404, { error: 'Not found' }) }
+    try { await getPrisma().creation.delete({ where: { id } }); return json(res, 200, { ok: true }) } catch { return json(res, 404, { error: 'Not found' }) }
   }
 
   if (path === '/api/folders' && method === 'GET') {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
-    try { const items = await prisma.folder.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } }); return json(res, 200, items) } catch { return json(res, 500, { error: 'Failed to fetch' }) }
+    try { const items = await getPrisma().folder.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } }); return json(res, 200, items) } catch { return json(res, 500, { error: 'Failed to fetch' }) }
   }
 
   if (path === '/api/folders' && method === 'POST') {
@@ -103,8 +103,8 @@ export default async function handler(req, res) {
     try {
       const body = JSON.parse(raw || '{}')
       if (!body.id || !body.name) return json(res, 400, { error: 'Missing id or name' })
-      await prisma.user.upsert({ where: { id: userId }, update: { updatedAt: new Date() }, create: { id: userId, name: userName || 'User', email: userEmail || `${userId}@example.local`, updatedAt: new Date() } })
-      const folder = await prisma.folder.create({ data: { id: body.id, name: body.name, userId, updatedAt: new Date() } })
+      await getPrisma().user.upsert({ where: { id: userId }, update: { updatedAt: new Date() }, create: { id: userId, name: userName || 'User', email: userEmail || `${userId}@example.local`, updatedAt: new Date() } })
+      const folder = await getPrisma().folder.create({ data: { id: body.id, name: body.name, userId, updatedAt: new Date() } })
       return json(res, 200, folder)
     } catch { return json(res, 500, { error: 'Failed to create folder' }) }
   }
@@ -114,20 +114,20 @@ export default async function handler(req, res) {
     if (!userId) return json(res, 401, { error: 'Missing user' })
     const id = path.split('/').pop()
     const raw = await readBody(req)
-    try { const body = JSON.parse(raw || '{}'); const folder = await prisma.folder.update({ where: { id }, data: { name: body.name, updatedAt: new Date() } }); return json(res, 200, folder) } catch { return json(res, 404, { error: 'Not found' }) }
+    try { const body = JSON.parse(raw || '{}'); const folder = await getPrisma().folder.update({ where: { id }, data: { name: body.name, updatedAt: new Date() } }); return json(res, 200, folder) } catch { return json(res, 404, { error: 'Not found' }) }
   }
 
   if (path === '/api/user/plan' && method === 'GET') {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
-    try { const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } }); return json(res, 200, { plan: user?.plan || 'HOBBY' }) } catch { return json(res, 500, { error: 'Failed to fetch plan' }) }
+    try { const user = await getPrisma().user.findUnique({ where: { id: userId }, select: { plan: true } }); return json(res, 200, { plan: user?.plan || 'HOBBY' }) } catch { return json(res, 500, { error: 'Failed to fetch plan' }) }
   }
 
   if (path === '/api/user/plan' && method === 'POST') {
     const userId = req.headers['x-user-id']?.toString()
     if (!userId) return json(res, 401, { error: 'Missing user' })
     const raw = await readBody(req)
-    try { const body = JSON.parse(raw || '{}'); const next = (body.plan || '').toUpperCase(); if (!['HOBBY', 'PRO'].includes(next)) return json(res, 400, { error: 'Invalid plan' }); await prisma.user.update({ where: { id: userId }, data: { plan: next } }); return json(res, 200, { ok: true }) } catch { return json(res, 400, { error: 'Invalid body' }) }
+    try { const body = JSON.parse(raw || '{}'); const next = (body.plan || '').toUpperCase(); if (!['HOBBY', 'PRO'].includes(next)) return json(res, 400, { error: 'Invalid plan' }); await getPrisma().user.update({ where: { id: userId }, data: { plan: next } }); return json(res, 200, { ok: true }) } catch { return json(res, 400, { error: 'Invalid body' }) }
   }
 
   if (path === '/api/create-checkout-session' && method === 'POST') {
