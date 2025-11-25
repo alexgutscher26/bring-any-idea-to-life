@@ -67,7 +67,7 @@ export const CreationHistory: React.FC<CreationHistoryProps> = ({
   }, [isCreatingFolder]);
 
   /**
-   * Handles the start of a drag event by setting data and allowing movement.
+   * Handles the start of a drag event by setting the creation ID and allowing movement.
    */
   const handleDragStart = (e: React.DragEvent, creationId: string) => {
     e.dataTransfer.setData("creationId", creationId);
@@ -101,7 +101,7 @@ export const CreationHistory: React.FC<CreationHistoryProps> = ({
   };
 
   /**
-   * Prevents the default drag event and sets the drop effect to "move".
+   * Prevents default drag event and sets drop effect to "move".
    */
   const allowDrop = (e: React.DragEvent) => {
     e.preventDefault();
