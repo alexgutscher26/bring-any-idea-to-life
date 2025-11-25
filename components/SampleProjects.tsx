@@ -57,7 +57,13 @@ const samples: Sample[] = [
   }
 ]
 
+/**
+ * Renders a list of sample projects with an import button for each.
+ */
 export const SampleProjects: React.FC<{ onImport: (c: Creation) => void }> = ({ onImport }) => {
+  /**
+   * Handles the import of a Sample object.
+   */
   const handleImport = (s: Sample) => {
     onImport({ id: s.id, name: s.name, files: s.files, timestamp: new Date() })
   }
