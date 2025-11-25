@@ -123,7 +123,7 @@ export async function createFolder(folder: { id: string; name: string }): Promis
   const resp = await fetch(apiUrl('/api/folders'), { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-user-id': currentUserId, 'x-user-email': currentUserEmail || '', 'x-user-name': currentUserName || '' }, body: JSON.stringify(folder) });
   if (!resp.ok) {
     let msg = 'Failed to create folder';
-    try { const err = await resp.json(); if (err?.error) msg = err.error; } catch {}
+    try { const err = await resp.json(); if (err?.error) msg = err.error; } catch { }
     throw new Error(msg);
   }
   return await resp.json();
@@ -144,7 +144,26 @@ export async function renameFolder(id: string, name: string): Promise<void> {
   const resp = await fetch(apiUrl(`/api/folders/${id}`), { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-user-id': currentUserId, 'x-user-email': currentUserEmail || '', 'x-user-name': currentUserName || '' }, body: JSON.stringify({ name }) });
   if (!resp.ok) {
     let msg = 'Failed to rename folder';
-    try { const err = await resp.json(); if (err?.error) msg = err.error; } catch {}
+    try { const err = await resp.json(); if (err?.error) msg = err.error; } catch { }
+    throw new Error(msg);
+  }
+}
+
+/**
+ * Delete a folder by its ID.
+ *
+ * This function checks for the presence of the current user ID and then sends a DELETE request to the API to delete the folder with the specified ID. If the response is not successful, it attempts to extract an error message from the response JSON before throwing an error.
+ *
+ * @param id - The ID of the folder to be deleted.
+ * @returns A promise that resolves when the folder has been successfully deleted.
+ * @throws Error If the current user ID is missing or if the API request fails.
+ */
+export async function deleteFolder(id: string): Promise<void> {
+  if (!currentUserId) throw new Error('Missing user');
+  const resp = await fetch(apiUrl(`/api/folders/${id}`), { method: 'DELETE', headers: { 'x-user-id': currentUserId, 'x-user-email': currentUserEmail || '', 'x-user-name': currentUserName || '' } });
+  if (!resp.ok) {
+    let msg = 'Failed to delete folder';
+    try { const err = await resp.json(); if (err?.error) msg = err.error; } catch { }
     throw new Error(msg);
   }
 }

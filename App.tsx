@@ -11,24 +11,26 @@ import { PricingModal } from './components/PricingModal';
 import { SampleProjects } from './components/SampleProjects'
 import { bringToLife, refineCreation } from './services/gemini';
 import { enqueue } from './services/queue';
-import { saveCreation, getAllCreations, setCurrentUser, setCurrentUserInfo, getFolders, createFolder, renameFolder, getUserPlan, setUserPlan } from './services/storage';
+import { saveCreation, getAllCreations, setCurrentUser, setCurrentUserInfo, getFolders, createFolder, renameFolder, deleteFolder, getUserPlan, setUserPlan } from './services/storage';
 import { ArrowUpTrayIcon, PlusIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 import { useSession, signOut } from './services/authClient'
+import { useToast } from './components/ToastProvider'
 import { SignInModal } from './components/SignInModal'
 import { SignUpModal } from './components/SignUpModal'
+import { ConfirmModal } from './components/ConfirmModal'
 import { useShortcuts } from './components/ShortcutProvider'
 import { ShortcutManager } from './components/ShortcutManager'
 import { Analytics } from '@vercel/analytics/react'
 
 // Error Boundary for LivePreview
 interface ErrorBoundaryProps {
-    children: React.ReactNode;
-    onClose: () => void;
+  children: React.ReactNode;
+  onClose: () => void;
 }
 
 interface ErrorBoundaryState {
-    hasError: boolean;
+  hasError: boolean;
 }
 
 class LivePreviewErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -47,10 +49,10 @@ class LivePreviewErrorBoundary extends React.Component<ErrorBoundaryProps, Error
   componentDidCatch(error: any, errorInfo: any) {
     console.error("LivePreview crashed:", error, errorInfo);
   }
-  
+
   handleClose = () => {
-      this.setState({ hasError: false });
-      this.props.onClose();
+    this.setState({ hasError: false });
+    this.props.onClose();
   }
 
   /**
@@ -58,18 +60,18 @@ class LivePreviewErrorBoundary extends React.Component<ErrorBoundaryProps, Error
    */
   render() {
     if (this.state.hasError) {
-       return (
-         <div className="fixed z-50 inset-4 md:inset-10 bg-[#0E0E10] border border-red-900/50 rounded-lg shadow-2xl flex flex-col items-center justify-center text-center p-8 animate-in fade-in zoom-in-95 duration-300">
-            <div className="p-4 bg-red-500/10 rounded-full mb-4">
-                <ExclamationTriangleIcon className="w-8 h-8 text-red-500" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2">Preview System Error</h3>
-            <p className="text-zinc-400 max-w-md mb-6">Something went wrong while rendering the preview. Please try resetting or generating again.</p>
-            <button onClick={this.handleClose} className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-zinc-200 transition-colors">
-                Close Preview
-            </button>
-         </div>
-       );
+      return (
+        <div className="fixed z-50 inset-4 md:inset-10 bg-[#0E0E10] border border-red-900/50 rounded-lg shadow-2xl flex flex-col items-center justify-center text-center p-8 animate-in fade-in zoom-in-95 duration-300">
+          <div className="p-4 bg-red-500/10 rounded-full mb-4">
+            <ExclamationTriangleIcon className="w-8 h-8 text-red-500" />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Preview System Error</h3>
+          <p className="text-zinc-400 max-w-md mb-6">Something went wrong while rendering the preview. Please try resetting or generating again.</p>
+          <button onClick={this.handleClose} className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-zinc-200 transition-colors">
+            Close Preview
+          </button>
+        </div>
+      );
     }
     return this.props.children;
   }
@@ -96,7 +98,9 @@ const App: React.FC = () => {
   const [showSignIn, setShowSignIn] = useState(false)
   const [showSignUp, setShowSignUp] = useState(false)
   const [showShortcutManager, setShowShortcutManager] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string; itemCount: number } | null>(null)
   const { register, setContext, setState, showFeedback } = useShortcuts()
+  const { showToast } = useToast()
 
   useEffect(() => {
     /**
@@ -116,17 +120,17 @@ const App: React.FC = () => {
       const params = new URLSearchParams(window.location.search);
       const checkout = params.get('checkout');
       if (checkout === 'success' && session?.user?.id) {
-          try { await setUserPlan('PRO'); setIsPro(true); } catch (e) {}
-          params.delete('checkout');
-          const url = new URL(window.location.href);
-          url.search = params.toString();
-          window.history.replaceState({}, '', url.toString());
+        try { await setUserPlan('PRO'); setIsPro(true); } catch (e) { }
+        params.delete('checkout');
+        const url = new URL(window.location.href);
+        url.search = params.toString();
+        window.history.replaceState({}, '', url.toString());
       }
 
       setCurrentUserInfo(session?.user ? { id: session.user.id, email: session.user.email, name: session.user.name } : null)
       try {
-         const dbFolders = await getFolders();
-         setFolders(dbFolders.map(f => ({ id: f.id, name: f.name })));
+        const dbFolders = await getFolders();
+        setFolders(dbFolders.map(f => ({ id: f.id, name: f.name })));
       } catch (e) { console.error('Failed to load folders', e) }
 
       const savedHistory = localStorage.getItem('gemini_app_history');
@@ -134,8 +138,8 @@ const App: React.FC = () => {
         try {
           const parsed = JSON.parse(savedHistory);
           await Promise.all(parsed.map(async (item: any) => {
-             const creation = { ...item, timestamp: new Date(item.timestamp) };
-             await saveCreation(creation);
+            const creation = { ...item, timestamp: new Date(item.timestamp) };
+            await saveCreation(creation);
           }));
           localStorage.removeItem('gemini_app_history');
         } catch (e) { console.error("Failed to migrate history", e); }
@@ -144,15 +148,15 @@ const App: React.FC = () => {
       try {
         const dbHistory = await getAllCreations();
         dbHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        
+
         if (dbHistory.length > 0) {
-             setHistory(dbHistory);
+          setHistory(dbHistory);
         } else {
-             // Initial seed logic can be removed or kept
+          // Initial seed logic can be removed or kept
         }
       } catch (e) { console.error("Failed to load from DB", e); }
 
-      try { const plan = await getUserPlan(); setIsPro(plan === 'PRO'); } catch (e) {}
+      try { const plan = await getUserPlan(); setIsPro(plan === 'PRO'); } catch (e) { }
     };
     initData();
   }, [session]);
@@ -163,7 +167,7 @@ const App: React.FC = () => {
    * Handles the upgrade process to a PRO user plan.
    */
   const handleUpgrade = async () => {
-      try { await setUserPlan('PRO'); setIsPro(true); } catch (e) { setIsPro(true); }
+    try { await setUserPlan('PRO'); setIsPro(true); } catch (e) { setIsPro(true); }
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -201,9 +205,9 @@ const App: React.FC = () => {
         imageBase64 = await fileToBase64(file);
         mimeType = file.type.toLowerCase();
       }
-      
+
       const generatedFiles = await enqueue(() => bringToLife(promptText, imageBase64, mimeType), isPro ? 'high' : 'normal');
-      
+
       if (generatedFiles && Object.keys(generatedFiles).length > 0) {
         const newCreation: Creation = {
           id: crypto.randomUUID(),
@@ -218,31 +222,31 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to generate:", error);
-      alert("Something went wrong while bringing your file to life. Please try again.");
+      showToast("Something went wrong while bringing your file to life. Please try again.", 'error');
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleRefine = async (prompt: string, currentFiles: Record<string, { content: string }>) => {
-      if (!activeCreation) return;
-      setIsRefining(true);
-      try {
-          const updatedFiles = await enqueue(() => refineCreation(currentFiles, prompt), isPro ? 'high' : 'normal');
-          const updatedCreation: Creation = { 
-              ...activeCreation, 
-              files: updatedFiles, 
-              timestamp: new Date() 
-          };
-          await saveCreation(updatedCreation);
-          setActiveCreation(updatedCreation);
-          setHistory(prev => prev.map(c => c.id === updatedCreation.id ? updatedCreation : c));
-      } catch (error) {
-          console.error("Refinement failed:", error);
-          alert("Failed to update the creation. Please try again.");
-      } finally {
-          setIsRefining(false);
-      }
+    if (!activeCreation) return;
+    setIsRefining(true);
+    try {
+      const updatedFiles = await enqueue(() => refineCreation(currentFiles, prompt), isPro ? 'high' : 'normal');
+      const updatedCreation: Creation = {
+        ...activeCreation,
+        files: updatedFiles,
+        timestamp: new Date()
+      };
+      await saveCreation(updatedCreation);
+      setActiveCreation(updatedCreation);
+      setHistory(prev => prev.map(c => c.id === updatedCreation.id ? updatedCreation : c));
+    } catch (error) {
+      console.error("Refinement failed:", error);
+      showToast("Failed to update the creation. Please try again.", 'error');
+    } finally {
+      setIsRefining(false);
+    }
   };
 
   /**
@@ -253,16 +257,16 @@ const App: React.FC = () => {
    * @param files - A record of files where each key is a string and the value is an object containing the file content.
    */
   const handleAutoSave = async (files: Record<string, { content: string }>) => {
-      if (!activeCreation) return;
-      const updated = { ...activeCreation, files, timestamp: new Date() };
-      
-      try {
-          await saveCreation(updated);
-          setHistory(prev => prev.map(c => c.id === updated.id ? updated : c));
-          setActiveCreation(updated);
-      } catch (e) {
-          console.error("Auto-save failed", e);
-      }
+    if (!activeCreation) return;
+    const updated = { ...activeCreation, files, timestamp: new Date() };
+
+    try {
+      await saveCreation(updated);
+      setHistory(prev => prev.map(c => c.id === updated.id ? updated : c));
+      setActiveCreation(updated);
+    } catch (e) {
+      console.error("Auto-save failed", e);
+    }
   };
 
   /**
@@ -287,12 +291,34 @@ const App: React.FC = () => {
     try {
       const saved = await createFolder(draft);
       setFolders(prev => [...prev, { id: saved.id, name: saved.name }]);
-    } catch (e: any) { console.error('Create folder failed', e); alert(e?.message || 'Failed to create folder'); }
+    } catch (e: any) { console.error('Create folder failed', e); showToast(e?.message || 'Failed to create folder', 'error'); }
   };
   const handleRenameFolder = async (id: string, name: string) => {
     if (!session?.user?.id) { setShowSignIn(true); return; }
     try { await renameFolder(id, name); setFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f)); }
-    catch (e: any) { console.error('Rename folder failed', e); alert(e?.message || 'Failed to rename folder'); }
+    catch (e: any) { console.error('Rename folder failed', e); showToast(e?.message || 'Failed to rename folder', 'error'); }
+  };
+  const handleDeleteFolder = (id: string) => {
+    if (!session?.user?.id) { setShowSignIn(true); return; }
+    const folder = folders.find(f => f.id === id);
+    const itemsInFolder = history.filter(c => c.folderId === id).length;
+    const folderName = folder?.name || 'this folder';
+    setConfirmDelete({ id, name: folderName, itemCount: itemsInFolder });
+  };
+
+  const confirmDeleteFolder = async () => {
+    if (!confirmDelete) return;
+    try {
+      await deleteFolder(confirmDelete.id);
+      setFolders(prev => prev.filter(f => f.id !== confirmDelete.id));
+      // Move items back to root
+      setHistory(prev => prev.map(c => c.folderId === confirmDelete.id ? { ...c, folderId: undefined } : c));
+      setConfirmDelete(null);
+    } catch (e: any) {
+      console.error('Delete folder failed', e);
+      showToast(e?.message || 'Failed to delete folder', 'error');
+      setConfirmDelete(null);
+    }
   };
   /**
    * Handles the creation of a move operation for a specified item.
@@ -305,16 +331,16 @@ const App: React.FC = () => {
    * @param folderId - The ID of the folder to which the creation will be moved, or undefined if no folder is specified.
    */
   const handleMoveCreation = async (creationId: string, folderId: string | undefined) => {
-      const item = history.find(c => c.id === creationId);
-      if (item) {
-          const updated = { ...item, folderId };
-          try {
-              await saveCreation(updated);
-              setHistory(prev => prev.map(c => c.id === creationId ? updated : c));
-          } catch (e) { console.error("Failed to move creation", e); }
-      }
+    const item = history.find(c => c.id === creationId);
+    if (item) {
+      const updated = { ...item, folderId };
+      try {
+        await saveCreation(updated);
+        setHistory(prev => prev.map(c => c.id === creationId ? updated : c));
+      } catch (e) { console.error("Failed to move creation", e); }
+    }
   };
-  
+
   /**
    * Handles the import of a file through a file input change event.
    *
@@ -330,17 +356,17 @@ const App: React.FC = () => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async (event) => {
-        try {
-            const json = event.target?.result as string;
-            const parsed = JSON.parse(json);
-            if (parsed.files || parsed.html) {
-                const importedCreation: Creation = { ...parsed, timestamp: new Date(parsed.timestamp || Date.now()), id: parsed.id || crypto.randomUUID() };
-                await saveCreation(importedCreation);
-                setHistory(prev => { const exists = prev.some(c => c.id === importedCreation.id); return exists ? prev : [importedCreation, ...prev]; });
-                setActiveCreation(importedCreation);
-            } else alert("Invalid creation file format.");
-        } catch (err) { console.error("Import error", err); alert("Failed to import creation."); }
-        if (importInputRef.current) importInputRef.current.value = '';
+      try {
+        const json = event.target?.result as string;
+        const parsed = JSON.parse(json);
+        if (parsed.files || parsed.html) {
+          const importedCreation: Creation = { ...parsed, timestamp: new Date(parsed.timestamp || Date.now()), id: parsed.id || crypto.randomUUID() };
+          await saveCreation(importedCreation);
+          setHistory(prev => { const exists = prev.some(c => c.id === importedCreation.id); return exists ? prev : [importedCreation, ...prev]; });
+          setActiveCreation(importedCreation);
+        } else showToast("Invalid creation file format.", 'error');
+      } catch (err) { console.error("Import error", err); showToast("Failed to import creation.", 'error'); }
+      if (importInputRef.current) importInputRef.current.value = '';
     };
     reader.readAsText(file);
   };
@@ -373,71 +399,71 @@ const App: React.FC = () => {
     <div className="h-[100dvh] bg-zinc-950 bg-dot-grid text-zinc-50 selection:bg-blue-500/30 overflow-y-auto overflow-x-hidden relative flex flex-col">
       <div className={`min-h-full flex flex-col w-full max-w-7xl mx-auto px-4 sm:px-6 relative z-10 transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1) ${isFocused ? 'opacity-0 scale-95 blur-sm pointer-events-none h-[100dvh] overflow-hidden' : 'opacity-100 scale-100 blur-0'}`}>
         <div className="w-full flex items-center justify-between py-6 relative z-20" aria-label="Header">
-            <div className="flex items-center gap-2">
-              <div className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest">BringSuite </div>
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] font-mono uppercase tracking-widest">Beta</span>
-            </div>
-            <div className="flex items-center gap-3" aria-label="Header actions">
-                {!session && (
-                  <>
-                  <button onClick={() => setShowSignIn(true)} aria-label="Sign In" className="hidden sm:flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white transition-colors px-3 py-1">Sign In</button>
-                  <button onClick={() => setShowSignUp(true)} aria-label="Sign Up" className="hidden sm:flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white transition-colors px-3 py-1">Sign Up</button>
-                  </>
-                )}
-                {session && (
-                  <div className="flex items-center gap-2 text-xs text-zinc-400">
-                    <span className="hidden sm:inline">{session.user.name || session.user.email}</span>
-                    <button onClick={() => signOut()} aria-label="Sign Out" className="px-3 py-1 rounded-full border border-zinc-700 hover:bg-zinc-800 hover:text-white transition-colors">Sign Out</button>
-                  </div>
-                )}
-                <button onClick={() => setShowPricing(true)} aria-label="Pricing" className="hidden sm:flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white transition-colors px-3 py-1">Pricing</button>
-                <button onClick={() => setShowShortcutManager(true)} aria-label="Shortcuts" className="hidden sm:flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white transition-colors px-3 py-1">Shortcuts</button>
-                {!isPro && (
-                    <button onClick={() => setShowPricing(true)} className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 text-amber-200 hover:text-white border border-amber-500/20 hover:border-amber-500/40 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-                        <SparklesIcon className="w-3 h-3 text-amber-400" />
-                        <span>Upgrade</span>
-                    </button>
-                )}
-                 {isPro && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold">
-                        <SparklesIcon className="w-3 h-3" />
-                        <span>PRO</span>
-                    </div>
-                )}
-                <div className="w-px h-4 bg-zinc-800 mx-1 hidden sm:block"></div>
-                <button onClick={handleNewUpload} disabled={isFocused} aria-label="New Upload" className="group flex items-center gap-2 bg-zinc-100 hover:bg-white text-zinc-900 px-4 py-2 rounded-full text-sm font-bold transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none">
-                    <PlusIcon className="w-4 h-4 text-blue-600 group-hover:text-blue-500" />
-                    <span className="hidden sm:inline">New</span><span className="sm:hidden">New</span>
-                </button>
-                
-            </div>
+          <div className="flex items-center gap-2">
+            <div className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest">BringSuite </div>
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] font-mono uppercase tracking-widest">Beta</span>
+          </div>
+          <div className="flex items-center gap-3" aria-label="Header actions">
+            {!session && (
+              <>
+                <button onClick={() => setShowSignIn(true)} aria-label="Sign In" className="hidden sm:flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white transition-colors px-3 py-1">Sign In</button>
+                <button onClick={() => setShowSignUp(true)} aria-label="Sign Up" className="hidden sm:flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white transition-colors px-3 py-1">Sign Up</button>
+              </>
+            )}
+            {session && (
+              <div className="flex items-center gap-2 text-xs text-zinc-400">
+                <span className="hidden sm:inline">{session.user.name || session.user.email}</span>
+                <button onClick={() => signOut()} aria-label="Sign Out" className="px-3 py-1 rounded-full border border-zinc-700 hover:bg-zinc-800 hover:text-white transition-colors">Sign Out</button>
+              </div>
+            )}
+            <button onClick={() => setShowPricing(true)} aria-label="Pricing" className="hidden sm:flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white transition-colors px-3 py-1">Pricing</button>
+            <button onClick={() => setShowShortcutManager(true)} aria-label="Shortcuts" className="hidden sm:flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-white transition-colors px-3 py-1">Shortcuts</button>
+            {!isPro && (
+              <button onClick={() => setShowPricing(true)} className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 text-amber-200 hover:text-white border border-amber-500/20 hover:border-amber-500/40 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                <SparklesIcon className="w-3 h-3 text-amber-400" />
+                <span>Upgrade</span>
+              </button>
+            )}
+            {isPro && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold">
+                <SparklesIcon className="w-3 h-3" />
+                <span>PRO</span>
+              </div>
+            )}
+            <div className="w-px h-4 bg-zinc-800 mx-1 hidden sm:block"></div>
+            <button onClick={handleNewUpload} disabled={isFocused} aria-label="New Upload" className="group flex items-center gap-2 bg-zinc-100 hover:bg-white text-zinc-900 px-4 py-2 rounded-full text-sm font-bold transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none">
+              <PlusIcon className="w-4 h-4 text-blue-600 group-hover:text-blue-500" />
+              <span className="hidden sm:inline">New</span><span className="sm:hidden">New</span>
+            </button>
+
+          </div>
         </div>
         <div className="flex-1 flex flex-col justify-center items-center w-full pb-12">
           <div className="w-full mb-8 md:mb-16"><Hero /></div>
           <div className="w-full flex justify-center mb-8" aria-label="Upload"><InputArea onGenerate={handleGenerate} isGenerating={isGenerating} disabled={isFocused} fileInputRef={fileInputRef} /></div>
         </div>
         <div className="flex-shrink-0 pb-6 w-full mt-auto flex flex-col items-center gap-6">
-            <div className="w-full px-2 md:px-0">
-                <SampleProjects onImport={handleImportSample} />
-                <CreationHistory 
-                    history={history} folders={folders} isPro={isPro}
-                    onSelect={handleSelectCreation} onCreateFolder={handleCreateFolder} onRenameFolder={handleRenameFolder} onMoveCreation={handleMoveCreation}
-                    onTriggerUpgrade={() => setShowPricing(true)}
-                    onOpenFolder={handleOpenFolder}
-                />
-            </div>
-            <a href="https://x.com/snackforcode" target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-zinc-400 text-xs font-mono transition-colors pb-2">Created by @ammaar</a>
+          <div className="w-full px-2 md:px-0">
+            <SampleProjects onImport={handleImportSample} />
+            <CreationHistory
+              history={history} folders={folders} isPro={isPro}
+              onSelect={handleSelectCreation} onCreateFolder={handleCreateFolder} onRenameFolder={handleRenameFolder} onDeleteFolder={handleDeleteFolder} onMoveCreation={handleMoveCreation}
+              onTriggerUpgrade={() => setShowPricing(true)}
+              onOpenFolder={handleOpenFolder}
+            />
+          </div>
+          <a href="https://x.com/snackforcode" target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-zinc-400 text-xs font-mono transition-colors pb-2">Created by @ammaar</a>
         </div>
       </div>
-      
+
       <LivePreviewErrorBoundary onClose={handleReset}>
-            <LivePreview creation={activeCreation} isLoading={isGenerating} isRefining={isRefining} isFocused={isFocused} isPro={isPro} onReset={handleReset} onRefine={handleRefine} onTriggerUpgrade={() => setShowPricing(true)} onAutoSave={handleAutoSave} />
+        <LivePreview creation={activeCreation} isLoading={isGenerating} isRefining={isRefining} isFocused={isFocused} isPro={isPro} onReset={handleReset} onRefine={handleRefine} onTriggerUpgrade={() => setShowPricing(true)} onAutoSave={handleAutoSave} />
       </LivePreviewErrorBoundary>
 
       <div className="fixed bottom-4 right-4 z-50">
         <button onClick={handleImportClick} className="flex items-center space-x-2 p-2 text-zinc-500 hover:text-zinc-300 transition-colors opacity-60 hover:opacity-100" title="Import Artifact">
-            <span className="text-xs font-medium uppercase tracking-wider hidden sm:inline">Upload previous artifact</span>
-            <ArrowUpTrayIcon className="w-5 h-5" />
+          <span className="text-xs font-medium uppercase tracking-wider hidden sm:inline">Upload previous artifact</span>
+          <ArrowUpTrayIcon className="w-5 h-5" />
         </button>
         <input type="file" ref={importInputRef} onChange={handleImportFile} accept=".json" className="hidden" />
       </div>
@@ -445,10 +471,24 @@ const App: React.FC = () => {
       <SignUpModal isOpen={showSignUp} onClose={() => setShowSignUp(false)} />
       <PricingModal isOpen={showPricing} onClose={() => setShowPricing(false)} onUpgrade={handleUpgrade} />
       <ShortcutManager isOpen={showShortcutManager} onClose={() => setShowShortcutManager(false)} />
+      <ConfirmModal
+        isOpen={!!confirmDelete}
+        title="Delete Folder"
+        message={confirmDelete ? (
+          confirmDelete.itemCount > 0
+            ? `Delete "${confirmDelete.name}"? This will move ${confirmDelete.itemCount} item${confirmDelete.itemCount > 1 ? 's' : ''} back to the archive.`
+            : `Delete "${confirmDelete.name}"?`
+        ) : ''}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={confirmDeleteFolder}
+        onCancel={() => setConfirmDelete(null)}
+      />
       <Analytics />
     </div>
   );
 };
 
 export default App;
-  
+

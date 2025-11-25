@@ -111,7 +111,7 @@ const server = http.createServer(async (req, res) => {
           updatedAt: new Date(),
         }
       })
-    } catch {}
+    } catch { }
   }
 
   if (url.pathname.startsWith('/api/auth')) {
@@ -271,6 +271,22 @@ const server = http.createServer(async (req, res) => {
       } catch { return json(res, 404, { error: 'Not found' }) }
     })
     return
+  }
+
+  if (method === 'DELETE' && url.pathname.startsWith('/api/folders/')) {
+    const userId = userIdHeader
+    if (!userId) return json(res, 401, { error: 'Missing user' })
+    const id = url.pathname.split('/').pop()
+    try {
+      // First, move all creations in this folder back to root (set folderId to null)
+      await prisma.creation.updateMany({
+        where: { folderId: id },
+        data: { folderId: null }
+      })
+      // Now delete the folder
+      await prisma.folder.delete({ where: { id } })
+      return json(res, 200, { ok: true })
+    } catch { return json(res, 404, { error: 'Not found' }) }
   }
 
   if (method === 'POST' && url.pathname === '/api/create-checkout-session') {
