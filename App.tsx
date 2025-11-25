@@ -355,13 +355,18 @@ const App: React.FC = () => {
     register({ id: 'save', label: 'Save', sequences: [[{ ctrl: true, key: 's' }], [{ ctrl: true, key: 'k' }, { ctrl: true, key: 's' }]], contexts: ['global'], when: s => !!s.hasActiveCreation, run: () => { window.dispatchEvent(new CustomEvent('shortcut-save')); showFeedback('Save', 'Ctrl+S') } })
   }, [])
 
-  const isFocused = !!activeCreation || isGenerating;
+  const hasFiles = !!activeCreation && ((activeCreation.files && Object.keys(activeCreation.files).length > 0) || !!activeCreation.html)
+  const isFocused = hasFiles || isGenerating;
 
   const handleImportSample = async (creation: Creation) => {
     const c: Creation = { ...creation, id: creation.id || crypto.randomUUID(), timestamp: new Date() }
     await saveCreation(c)
     setActiveCreation(c)
     setHistory(prev => [c, ...prev])
+  }
+
+  const handleOpenFolder = (folderId: string | undefined) => {
+    setActiveCreation(null)
   }
 
   return (
@@ -418,6 +423,7 @@ const App: React.FC = () => {
                     history={history} folders={folders} isPro={isPro}
                     onSelect={handleSelectCreation} onCreateFolder={handleCreateFolder} onRenameFolder={handleRenameFolder} onMoveCreation={handleMoveCreation}
                     onTriggerUpgrade={() => setShowPricing(true)}
+                    onOpenFolder={handleOpenFolder}
                 />
             </div>
             <a href="https://x.com/snackforcode" target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-zinc-400 text-xs font-mono transition-colors pb-2">Created by @ammaar</a>

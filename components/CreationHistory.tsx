@@ -29,6 +29,7 @@ interface CreationHistoryProps {
   onRenameFolder: (id: string, newName: string) => void;
   onMoveCreation: (creationId: string, folderId: string | undefined) => void;
   onTriggerUpgrade: () => void;
+  onOpenFolder?: (folderId: string | undefined) => void;
 }
 
 export const CreationHistory: React.FC<CreationHistoryProps> = ({ 
@@ -39,7 +40,8 @@ export const CreationHistory: React.FC<CreationHistoryProps> = ({
     onCreateFolder, 
     onRenameFolder, 
     onMoveCreation,
-    onTriggerUpgrade
+    onTriggerUpgrade,
+    onOpenFolder
 }) => {
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined);
   const [isDragging, setIsDragging] = useState(false);
@@ -148,7 +150,7 @@ export const CreationHistory: React.FC<CreationHistoryProps> = ({
       ) : (
           <div className="flex overflow-x-auto space-x-4 pb-2 px-2 scrollbar-hide min-h-[120px]">
             {currentFolder && (
-                <button onClick={() => setCurrentFolderId(undefined)} onDragOver={allowDrop} onDrop={handleDropOnBack} className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-28 border border-dashed rounded-lg transition-colors ${isDragging ? 'border-blue-500/50 bg-blue-500/10' : 'border-zinc-800 hover:bg-zinc-900 hover:border-zinc-700'}`} title="Back to Archive">
+                <button onClick={() => { setCurrentFolderId(undefined); onOpenFolder && onOpenFolder(undefined); }} onDragOver={allowDrop} onDrop={handleDropOnBack} className={`flex-shrink-0 flex flex-col items-center justify-center w-16 h-28 border border-dashed rounded-lg transition-colors ${isDragging ? 'border-blue-500/50 bg-blue-500/10' : 'border-zinc-800 hover:bg-zinc-900 hover:border-zinc-700'}`} title="Back to Archive">
                     <ChevronLeftIcon className="w-5 h-5 text-zinc-500" />
                     <span className="text-[10px] text-zinc-600 mt-1 font-medium">Back</span>
                 </button>
@@ -162,14 +164,14 @@ export const CreationHistory: React.FC<CreationHistoryProps> = ({
             )}
 
             {visibleFolders.map(folder => (
-                <div key={folder.id} onDragOver={allowDrop} onDrop={(e) => handleDropOnFolder(e, folder.id)} onClick={() => setCurrentFolderId(folder.id)} className={`group flex-shrink-0 relative w-36 h-28 bg-zinc-900/30 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-lg transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 ${isDragging ? 'border-blue-500/30 bg-blue-500/5' : ''}`}>
+                <div key={folder.id} onDragOver={allowDrop} onDrop={(e) => handleDropOnFolder(e, folder.id)} onClick={() => { setCurrentFolderId(folder.id); onOpenFolder && onOpenFolder(folder.id); }} className={`group flex-shrink-0 relative w-36 h-28 bg-zinc-900/30 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-lg transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 ${isDragging ? 'border-blue-500/30 bg-blue-500/5' : ''}`}>
                     <FolderIcon className="w-8 h-8 text-zinc-600 group-hover:text-blue-400 transition-colors" />
                     {editingFolderId === folder.id ? (
                         <input type="text" value={tempFolderName} onChange={(e) => setTempFolderName(e.target.value)} onBlur={saveEditing} onKeyDown={(e) => e.key === 'Enter' && saveEditing()} autoFocus onClick={(e) => e.stopPropagation()} className="w-24 text-center bg-zinc-950 text-xs text-white border border-blue-500 rounded px-1 py-0.5 outline-none" />
                     ) : (
                         <div className="flex items-center gap-1 max-w-full px-3 relative z-10">
-                             <span className="text-xs font-medium text-zinc-400 group-hover:text-zinc-200 truncate pointer-events-none">{folder.name}</span>
-                             <button onClick={(e) => { e.stopPropagation(); startEditing(folder); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-white transition-all" title="Rename"><PencilSquareIcon className="w-3 h-3" /></button>
+                            <span className="text-xs font-medium text-zinc-400 group-hover:text-zinc-200 truncate pointer-events-none">{folder.name}</span>
+                            <button onClick={(e) => { e.stopPropagation(); startEditing(folder); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-white transition-all" title="Rename"><PencilSquareIcon className="w-3 h-3" /></button>
                         </div>
                     )}
                     <div className="absolute top-2 right-2 text-[9px] text-zinc-600 font-mono pointer-events-none">{history.filter(c => c.folderId === folder.id).length}</div>
