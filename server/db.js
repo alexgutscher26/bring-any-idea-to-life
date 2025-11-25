@@ -16,3 +16,5 @@ export function getPrisma() {
   prismaInstance = new PrismaClient({ adapter })
   return prismaInstance
 }
+
+export const prisma = getPrisma()
