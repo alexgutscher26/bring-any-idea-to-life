@@ -365,6 +365,9 @@ const App: React.FC = () => {
     setHistory(prev => [c, ...prev])
   }
 
+  /**
+   * Resets the active creation state when a folder is opened.
+   */
   const handleOpenFolder = (folderId: string | undefined) => {
     setActiveCreation(null)
   }
