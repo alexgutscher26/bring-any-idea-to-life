@@ -18,6 +18,13 @@ function pickNext() {
   return queue.shift() || null
 }
 
+/**
+ * Processes tasks from a queue asynchronously.
+ *
+ * The function checks if a task is already running; if not, it sets the running flag to true. It then enters a loop to process tasks from the queue, picking the next task and awaiting its execution. If the task has a normal priority, it introduces a delay before execution. In case of an error during task execution, it logs the error and rejects the task. After processing all tasks, it resets the running flag and recursively calls itself if there are remaining tasks in the queue.
+ *
+ * @returns {Promise<void>} A promise that resolves when all tasks have been processed.
+ */
 async function work() {
   if (running) return
   running = true
