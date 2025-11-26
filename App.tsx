@@ -11,6 +11,7 @@ import { PricingModal } from './components/PricingModal';
 import { SampleProjects } from './components/SampleProjects'
 import { bringToLife, refineCreation } from './services/gemini';
 import { enqueue } from './services/queue';
+import { isTimeoutError } from './utils/timeout';
 import { saveCreation, getAllCreations, setCurrentUser, setCurrentUserInfo, getFolders, createFolder, renameFolder, deleteFolder, getUserPlan, setUserPlan } from './services/storage';
 import { ArrowUpTrayIcon, PlusIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { SparklesIcon } from '@heroicons/react/24/solid';
@@ -222,7 +223,11 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to generate:", error);
-      showToast("Something went wrong while bringing your file to life. Please try again.", 'error');
+      if (isTimeoutError(error)) {
+        showToast("Generation timed out. The AI took too long to respond. Please try again.", 'error');
+      } else {
+        showToast("Something went wrong while bringing your file to life. Please try again.", 'error');
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -243,7 +248,11 @@ const App: React.FC = () => {
       setHistory(prev => prev.map(c => c.id === updatedCreation.id ? updatedCreation : c));
     } catch (error) {
       console.error("Refinement failed:", error);
-      showToast("Failed to update the creation. Please try again.", 'error');
+      if (isTimeoutError(error)) {
+        showToast("Refinement timed out. The AI took too long to respond. Please try again.", 'error');
+      } else {
+        showToast("Failed to update the creation. Please try again.", 'error');
+      }
     } finally {
       setIsRefining(false);
     }

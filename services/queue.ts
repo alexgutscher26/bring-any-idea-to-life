@@ -31,6 +31,7 @@ async function work() {
         const res = await task.run()
         task.resolve(res)
       } catch (e) {
+        console.error(`Queue task ${task.id} failed:`, e)
         task.reject(e)
       }
     }

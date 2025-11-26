@@ -3,25 +3,31 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { withTimeout } from '../utils/timeout';
 
 // Using gemini-3-pro-preview for complex coding tasks.
 const GEMINI_MODEL = 'gemini-3-pro-preview';
 // Fallback model if Pro is experiencing high traffic/errors.
 const FALLBACK_MODEL = 'gemini-2.5-flash';
 
+// Timeout configurations (in milliseconds)
+const GENERATION_TIMEOUT = 120000; // 2 minutes
+const REFINEMENT_TIMEOUT = 90000;  // 1.5 minutes
+const CONVERSION_TIMEOUT = 120000; // 2 minutes
+
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const SYSTEM_INSTRUCTION = `You are an expert Senior Frontend Engineer and UI/UX Designer. 
-Your task is to generate a complete, production-ready web application based on the user's request.
+const SYSTEM_INSTRUCTION = `You are an expert Senior Frontend Engineer and UI / UX Designer. 
+Your task is to generate a complete, production - ready web application based on the user's request.
 
 CORE OUTPUT DIRECTIVES:
-1. **Multi-File Structure**: You must return a VALID JSON object representing a virtual file system.
-   - Keys: File paths (e.g., "index.html", "styles.css", "script.js", "utils.js").
+1. ** Multi - File Structure **: You must return a VALID JSON object representing a virtual file system.
+   - Keys: File paths(e.g., "index.html", "styles.css", "script.js", "utils.js").
    - Values: An object with a "content" property containing the code string.
    - Example: { "index.html": { "content": "..." }, "styles.css": { "content": "..." } }
 
-2. **Mandatory Files**:
-   - \`index.html\`: The entry point. Must link to CSS and JS files correctly using relative paths (e.g., <link rel="stylesheet" href="styles.css">, <script src="script.js"></script>).
+2. ** Mandatory Files **:
+- \`index.html\`: The entry point. Must link to CSS and JS files correctly using relative paths (e.g., <link rel="stylesheet" href="styles.css">, <script src="script.js"></script>).
    - \`styles.css\`: All custom CSS.
    - \`script.js\`: Main application logic.
 
@@ -97,27 +103,27 @@ RESPONSE FORMAT:
 Return ONLY the raw JSON string of the file map. Do not wrap in markdown code blocks.`;
 
 async function executeGeneration(modelName: string, contents: any, config: any, attempt: number = 0): Promise<Record<string, { content: string }>> {
-     const response: GenerateContentResponse = await ai.models.generateContent({
+    const response: GenerateContentResponse = await ai.models.generateContent({
         model: modelName,
         contents: contents,
         config: { ...config, responseMimeType: "application/json" },
     });
 
     let text = response.text || "{}";
-    
+
     // Robust Cleanup:
     // 1. Remove standard markdown code blocks
     text = text.replace(/^```(json)?\s*/g, '').replace(/```\s*$/g, '');
-    
+
     // 2. Robust extraction: Find the absolute first '{' and the absolute last '}'
     // This prevents issues where the model adds "Here is your code:" before or after the JSON.
     const firstOpen = text.indexOf('{');
     const lastClose = text.lastIndexOf('}');
-    
+
     if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
         text = text.substring(firstOpen, lastClose + 1);
     }
-    
+
     try {
         const parsed = JSON.parse(text);
         // Normalize if the AI returns { "files": { ... } } instead of direct map
@@ -126,72 +132,88 @@ async function executeGeneration(modelName: string, contents: any, config: any, 
     } catch (e) {
         console.error("Failed to parse Gemini JSON response. Raw text:", text);
         console.error("Parse error:", e);
-        
+
         // Last resort fallback: if it looks like HTML and failed parsing, wrap it.
         if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
             return { "index.html": { content: text } };
         }
-        
+
         throw new Error("AI response was not valid JSON. Please try again.");
     }
 }
 
 export async function bringToLife(prompt: string, fileBase64?: string, mimeType?: string): Promise<Record<string, { content: string }>> {
-  const parts: any[] = [];
-  
-  let finalPrompt = "";
-  const isSvg = mimeType === 'image/svg+xml';
-  
-  if (fileBase64) {
-    if (isSvg) {
-        try {
-            const svgContent = atob(fileBase64);
-            finalPrompt = `TASK: Turn this SVG wireframe into a fully functional, multi-file web app.\n\nUSER PROMPT: ${prompt || "Make it interactive."}\n\nSVG CONTEXT:\n${svgContent}`;
-        } catch (e) {
-            finalPrompt = `Analyze the implied structure. ${prompt ? `\n\nUSER REQUEST: ${prompt}` : ''}`;
+    return withTimeout(
+        bringToLifeInternal(prompt, fileBase64, mimeType),
+        GENERATION_TIMEOUT,
+        'AI generation timed out. Please try again.'
+    );
+}
+
+async function bringToLifeInternal(prompt: string, fileBase64?: string, mimeType?: string): Promise<Record<string, { content: string }>> {
+    const parts: any[] = [];
+
+    let finalPrompt = "";
+    const isSvg = mimeType === 'image/svg+xml';
+
+    if (fileBase64) {
+        if (isSvg) {
+            try {
+                const svgContent = atob(fileBase64);
+                finalPrompt = `TASK: Turn this SVG wireframe into a fully functional, multi-file web app.\n\nUSER PROMPT: ${prompt || "Make it interactive."}\n\nSVG CONTEXT:\n${svgContent}`;
+            } catch (e) {
+                finalPrompt = `Analyze the implied structure. ${prompt ? `\n\nUSER REQUEST: ${prompt}` : ''}`;
+            }
+        } else {
+            finalPrompt = `Analyze this image. Build a fully functional web app matching this design. Split code into index.html, styles.css, and script.js. \n\nUSER REQUEST: ${prompt || "Build what you see."}`;
         }
     } else {
-        finalPrompt = `Analyze this image. Build a fully functional web app matching this design. Split code into index.html, styles.css, and script.js. \n\nUSER REQUEST: ${prompt || "Build what you see."}`;
+        finalPrompt = prompt || "Create a demo app that shows off your capabilities. Use index.html, styles.css, and script.js.";
     }
-  } else {
-    finalPrompt = prompt || "Create a demo app that shows off your capabilities. Use index.html, styles.css, and script.js.";
-  }
 
-  if (fileBase64 && mimeType && !isSvg) {
-    parts.push({
-      inlineData: {
-        data: fileBase64,
-        mimeType: mimeType,
-      },
-    });
-  }
-
-  parts.push({ text: finalPrompt });
-
-  const maxRetries = 3;
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-        const useModel = (attempt === 0) ? GEMINI_MODEL : FALLBACK_MODEL;
-        console.log(`Generation attempt ${attempt + 1} using model: ${useModel}`);
-        
-        return await executeGeneration(
-            useModel, 
-            { role: 'user', parts: parts }, 
-            { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.4 },
-            attempt
-        );
-
-    } catch (error: any) {
-        console.warn(`Gemini generation attempt ${attempt + 1} failed:`, error);
-        if (attempt < maxRetries - 1) await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
-        else throw error;
+    if (fileBase64 && mimeType && !isSvg) {
+        parts.push({
+            inlineData: {
+                data: fileBase64,
+                mimeType: mimeType,
+            },
+        });
     }
-  }
-  throw new Error("Generation failed");
+
+    parts.push({ text: finalPrompt });
+
+    const maxRetries = 3;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const useModel = (attempt === 0) ? GEMINI_MODEL : FALLBACK_MODEL;
+            console.log(`Generation attempt ${attempt + 1} using model: ${useModel}`);
+
+            return await executeGeneration(
+                useModel,
+                { role: 'user', parts: parts },
+                { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.4 },
+                attempt
+            );
+
+        } catch (error: any) {
+            console.warn(`Gemini generation attempt ${attempt + 1} failed:`, error);
+            if (attempt < maxRetries - 1) await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+            else throw error;
+        }
+    }
+    throw new Error("Generation failed");
 }
 
 export async function refineCreation(currentFiles: Record<string, { content: string }>, userPrompt: string): Promise<Record<string, { content: string }>> {
+    return withTimeout(
+        refineCreationInternal(currentFiles, userPrompt),
+        REFINEMENT_TIMEOUT,
+        'AI refinement timed out. Please try again.'
+    );
+}
+
+async function refineCreationInternal(currentFiles: Record<string, { content: string }>, userPrompt: string): Promise<Record<string, { content: string }>> {
     const fileContext = JSON.stringify(currentFiles, null, 2);
     const parts = [
         { text: `CURRENT PROJECT FILES:\n${fileContext}` },
@@ -211,7 +233,7 @@ export async function refineCreation(currentFiles: Record<string, { content: str
                 { systemInstruction: REFINEMENT_INSTRUCTION, temperature: 0.3 },
                 attempt
             );
-            
+
             // Merge updates into current files
             return { ...currentFiles, ...updates };
 
@@ -225,6 +247,14 @@ export async function refineCreation(currentFiles: Record<string, { content: str
 }
 
 export async function convertToFramework(files: Record<string, { content: string }>, framework: 'react' | 'vue'): Promise<Record<string, { content: string }>> {
+    return withTimeout(
+        convertToFrameworkInternal(files, framework),
+        CONVERSION_TIMEOUT,
+        'Framework conversion timed out. Please try again.'
+    );
+}
+
+async function convertToFrameworkInternal(files: Record<string, { content: string }>, framework: 'react' | 'vue'): Promise<Record<string, { content: string }>> {
     const fileContext = JSON.stringify(files, null, 2);
     const prompt = `Convert this project to a complete ${framework === 'react' ? 'React + Vite + TypeScript' : 'Vue + Vite + TypeScript'} project structure.
     
