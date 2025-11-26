@@ -21,7 +21,6 @@
 - [x] Onboarding tour and sample projects
 - [ ] Notifications (in‑app toasts and email for long tasks)
 - [ ] Internationalization (i18n) and localization
-- [ ] Dark mode and theme customization
 - [ ] Public API for programmatic creation/export
 - [ ] Plugin API for custom tools
 - [ ] Publishing to Netlify/Vercel directly from exports
