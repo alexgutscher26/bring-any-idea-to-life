@@ -142,6 +142,9 @@ async function executeGeneration(modelName: string, contents: any, config: any, 
     }
 }
 
+/**
+ * Initiates the AI generation process with a prompt and optional file data.
+ */
 export async function bringToLife(prompt: string, fileBase64?: string, mimeType?: string): Promise<Record<string, { content: string }>> {
     return withTimeout(
         bringToLifeInternal(prompt, fileBase64, mimeType),
@@ -150,6 +153,20 @@ export async function bringToLife(prompt: string, fileBase64?: string, mimeType?
     );
 }
 
+/**
+ * Generates a web application based on a user prompt and an optional image file.
+ *
+ * The function constructs a final prompt based on the provided prompt and fileBase64.
+ * It handles SVG and non-SVG images differently, preparing the necessary context for
+ * the web app generation. The function attempts to execute the generation process
+ * using a specified model, retrying up to three times in case of failure.
+ *
+ * @param prompt - The user prompt for the web app generation.
+ * @param fileBase64 - An optional base64-encoded string of the image file.
+ * @param mimeType - An optional MIME type of the image file.
+ * @returns A promise that resolves to a record containing the generated content.
+ * @throws Error If the generation process fails after maximum retries.
+ */
 async function bringToLifeInternal(prompt: string, fileBase64?: string, mimeType?: string): Promise<Record<string, { content: string }>> {
     const parts: any[] = [];
 
@@ -205,6 +222,9 @@ async function bringToLifeInternal(prompt: string, fileBase64?: string, mimeType
     throw new Error("Generation failed");
 }
 
+/**
+ * Refines the given files based on the user prompt with a timeout.
+ */
 export async function refineCreation(currentFiles: Record<string, { content: string }>, userPrompt: string): Promise<Record<string, { content: string }>> {
     return withTimeout(
         refineCreationInternal(currentFiles, userPrompt),
@@ -246,6 +266,9 @@ async function refineCreationInternal(currentFiles: Record<string, { content: st
     throw new Error("Refinement failed");
 }
 
+/**
+ * Converts files to the specified framework format.
+ */
 export async function convertToFramework(files: Record<string, { content: string }>, framework: 'react' | 'vue'): Promise<Record<string, { content: string }>> {
     return withTimeout(
         convertToFrameworkInternal(files, framework),
@@ -254,6 +277,9 @@ export async function convertToFramework(files: Record<string, { content: string
     );
 }
 
+/**
+ * Converts project files to a specified framework structure.
+ */
 async function convertToFrameworkInternal(files: Record<string, { content: string }>, framework: 'react' | 'vue'): Promise<Record<string, { content: string }>> {
     const fileContext = JSON.stringify(files, null, 2);
     const prompt = `Convert this project to a complete ${framework === 'react' ? 'React + Vite + TypeScript' : 'Vue + Vite + TypeScript'} project structure.

@@ -190,8 +190,8 @@ const App: React.FC = () => {
    *
    * This function sets the generating state, processes the input file to convert it to base64 if provided,
    * and enqueues a request to generate files based on the prompt text. If files are generated successfully,
-   * it creates a new creation object, saves it, and updates the active creation and history.
-   * Errors during the process are caught and logged, with a user alert for failure.
+   * it creates a new creation object, saves it, and updates the active creation and history. Errors during the
+   * process are caught and logged, with user alerts for specific failures.
    *
    * @param promptText - The text prompt used for generating the creation.
    * @param file - An optional file to be processed and included in the creation.
@@ -233,6 +233,16 @@ const App: React.FC = () => {
     }
   };
 
+  /**
+   * Handles the refinement of a creation based on the provided prompt and current files.
+   *
+   * The function checks if activeCreation is present, sets the refining state, and attempts to refine the current files using the refineCreation function. It updates the activeCreation with the new files and timestamp, saves the updated creation, and updates the history. In case of an error, it logs the error and shows an appropriate toast message based on the error type.
+   *
+   * @param prompt - The prompt used for refining the creation.
+   * @param currentFiles - A record of current files with their content.
+   * @returns A promise that resolves when the refinement process is complete.
+   * @throws Error If the refinement process fails due to a timeout or other issues.
+   */
   const handleRefine = async (prompt: string, currentFiles: Record<string, { content: string }>) => {
     if (!activeCreation) return;
     setIsRefining(true);

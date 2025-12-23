@@ -14,13 +14,13 @@ export class TimeoutError extends Error {
 }
 
 /**
- * Wraps a promise with a timeout. If the promise doesn't resolve within
- * the specified duration, it rejects with a TimeoutError.
- * 
+ * Wraps a promise with a timeout, rejecting if it doesn't resolve in time.
+ *
+ * This function creates a race between the provided promise and a timeout promise. If the promise resolves before the timeout, its value is returned. If the timeout occurs first, a TimeoutError is thrown with a custom or default message. The timeout is cleared in both success and error cases to prevent memory leaks.
+ *
  * @param promise - The promise to wrap with timeout
  * @param timeoutMs - Timeout duration in milliseconds
  * @param errorMessage - Optional custom error message
- * @returns Promise that resolves with the original promise value or rejects with TimeoutError
  */
 export async function withTimeout<T>(
     promise: Promise<T>,
@@ -46,10 +46,8 @@ export async function withTimeout<T>(
 }
 
 /**
- * Creates an AbortController that automatically aborts after a timeout
- * 
- * @param timeoutMs - Timeout duration in milliseconds
- * @returns Object containing the AbortController and cleanup function
+ * Creates an AbortController that aborts after a specified timeout.
+ * @param timeoutMs - Timeout duration in milliseconds.
  */
 export function createTimeoutController(timeoutMs: number): {
     controller: AbortController;
